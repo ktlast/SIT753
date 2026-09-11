@@ -1,0 +1,46 @@
+pipeline {
+  agent any
+  stages {
+    stage('Checkout') {
+      steps {
+        git branch: 'main', url: 'https://github.com/ktlast/8.2CDevSecOps.git'
+      }
+    }
+    stage('Install Dependencies') {
+      steps {
+        sh 'npm install'
+      }
+    }
+    stage('Run Tests') {
+      steps {
+        sh 'npm test || true' // Allows pipeline to continue despite test failures
+      }
+    }
+    stage('Generate Coverage Report') {
+      steps {
+        // Ensure coverage report exists
+        sh 'npm run coverage || true'
+      }
+    }
+    stage('NPM Audit (Security Scan)') {
+      steps {
+        sh 'npm audit || true' // This will show known CVEs in the output
+      }
+    }
+    stage('SonarCloud Analysis') {
+      steps {
+        withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
+          sh '''
+            curl -fL \
+              -o sonar-scanner.zip \
+              https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+            unzip -oq sonar-scanner.zip
+            ./sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner \
+              -Dproject.settings=sonar-project.properties \
+              -Dsonar.token="$SONAR_TOKEN"
+          '''
+        }
+      }
+    }
+  }
+}
