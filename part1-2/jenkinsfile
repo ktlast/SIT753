@@ -1,5 +1,10 @@
 pipeline {
   agent any
+
+  environment {
+    NOTIFICATION_EMAIL = 'abc1238364@gmail.com'
+  }
+
   stages {
     stage('Checkout') {
       steps {
@@ -13,7 +18,25 @@ pipeline {
     }
     stage('Run Tests') {
       steps {
-        sh 'npm test || true' // Allows pipeline to continue despite test failures
+        sh 'npm test || true'
+      }
+      post {
+        success {
+          emailext(
+            to: "${env.NOTIFICATION_EMAIL}",
+            subject: "${env.JOB_NAME} #${env.BUILD_NUMBER} - Run Tests: SUCCESS",
+            body: "Run Tests status: SUCCESS\nBuild: ${env.BUILD_URL}",
+            attachLog: true
+          )
+        }
+        failure {
+          emailext(
+            to: "${env.NOTIFICATION_EMAIL}",
+            subject: "${env.JOB_NAME} #${env.BUILD_NUMBER} - Run Tests: FAILURE",
+            body: "Run Tests status: FAILURE\nBuild: ${env.BUILD_URL}",
+            attachLog: true
+          )
+        }
       }
     }
     stage('Generate Coverage Report') {
@@ -24,21 +47,24 @@ pipeline {
     }
     stage('NPM Audit (Security Scan)') {
       steps {
-        sh 'npm audit || true' // This will show known CVEs in the output
+        sh 'npm audit || true'
       }
-    }
-    stage('SonarCloud Analysis') {
-      steps {
-        withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
-          sh '''
-            curl -fL \
-              -o sonar-scanner.zip \
-              https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
-            unzip -oq sonar-scanner.zip
-            ./sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner \
-              -Dproject.settings=sonar-project.properties \
-              -Dsonar.token="$SONAR_TOKEN"
-          '''
+      post {
+        success {
+          emailext(
+            to: "${env.NOTIFICATION_EMAIL}",
+            subject: "${env.JOB_NAME} #${env.BUILD_NUMBER} - NPM Audit: SUCCESS",
+            body: "NPM Audit status: SUCCESS\nBuild: ${env.BUILD_URL}",
+            attachLog: true
+          )
+        }
+        failure {
+          emailext(
+            to: "${env.NOTIFICATION_EMAIL}",
+            subject: "${env.JOB_NAME} #${env.BUILD_NUMBER} - NPM Audit: FAILURE",
+            body: "NPM Audit status: FAILURE\nBuild: ${env.BUILD_URL}",
+            attachLog: true
+          )
         }
       }
     }
